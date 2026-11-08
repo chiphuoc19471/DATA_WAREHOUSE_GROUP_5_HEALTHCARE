@@ -1,7 +1,8 @@
 # Data Warehouse & BI trên dữ liệu y tế Synthea
 
 Bài tập lớn môn **Kho dữ liệu và Kinh doanh thông minh**.
-Xây dựng kho dữ liệu (Data Warehouse – DW) và hệ thống báo cáo thông minh (Business Intelligence – BI) trên dữ liệu y tế tổng hợp Synthea, bang Massachusetts, giai đoạn 2023–2025. Chủ đề mở rộng: **Data Lakehouse**.
+Xây dựng kho dữ liệu (Data Warehouse – DW) và hệ thống báo cáo thông minh (Business Intelligence – BI) trên dữ liệu y tế tổng hợp Synthea, bang Massachusetts, giai đoạn 2023–2025.
+Hệ thống DW & BI (mục 1–11) hoàn chỉnh và chạy độc lập. Phần mở rộng được trình bày riêng ở mục 12.
 
 > Repo này chỉ chứa **code**. Dữ liệu CSV, file Power BI (.pbix), báo cáo và slide lưu trên Google Drive của nhóm: https://drive.google.com/drive/u/0/folders/1UYBstJ9JB-LLHR31A_CIA9IepMeM6GgQ
 
@@ -16,7 +17,6 @@ Xây dựng kho dữ liệu (Data Warehouse – DW) và hệ thống báo cáo t
 | Hệ quản trị CSDL | PostgreSQL (3 schema: `staging`, `dw`, `mart`) |
 | Lược đồ DW | Galaxy Schema (Fact Constellation): 8 fact + 10 dimension |
 | BI | Power BI Desktop / Service – 6 dashboard |
-| Lakehouse | Delta Lake (thư viện `deltalake`) + DuckDB; Microsoft Fabric là tùy chọn |
 | Thời gian | 04/11/2026 – 11/11/2026 (4 sprint × 2 ngày) |
 
 ## 2. Thành viên
@@ -24,7 +24,7 @@ Xây dựng kho dữ liệu (Data Warehouse – DW) và hệ thống báo cáo t
 | Mã | Thành viên | Vai trò | Phần code phụ trách |
 |---|---|---|---|
 | TV1 | Phước | Nhóm trưởng; khảo sát nghiệp vụ, KPI; dashboard D2, D5 | DAX cho D2, D5 |
-| TV2 | Lộc | Kỹ sư dữ liệu | `sql/`, `python/` (nạp dữ liệu, ETL), `lakehouse/` |
+| TV2 | Lộc | Kỹ sư dữ liệu | `sql/`, `python/` (nạp dữ liệu, ETL); phần mở rộng `lakehouse/` |
 | TV3 | Sơn | Phân tích dữ liệu & mô hình hóa | `python/` (EDA), dashboard D4, D6 |
 | TV4 | Xuân | BI & lý thuyết | `r/`, `powerquery/`, DAX, dashboard D1, D3 |
 
@@ -36,14 +36,9 @@ flowchart LR
     B -->|ETL: SQL, Python| C[(dw<br/>8 fact + 10 dim)]
     C --> D[(mart<br/>4 data mart)]
     D -->|Power Query| E[Power BI<br/>6 dashboard]
-    A --> F[Bronze<br/>Delta]
-    F --> G[Silver<br/>làm sạch]
-    G --> H[Gold<br/>fact + dim]
-    H -->|DuckDB| I[So sánh với PostgreSQL]
 ```
 
-Luồng chính: **Nguồn → Staging → Data Warehouse → Data mart → BI**.
-Luồng mở rộng (Lakehouse): **Bronze → Silver → Gold**. Gold phải khớp số liệu với DW trên PostgreSQL.
+Hệ thống gồm 4 lớp: **Nguồn → Staging → Data Warehouse → Data mart → BI**.
 
 ## 4. Thiết kế kho dữ liệu
 
@@ -91,29 +86,36 @@ Luồng mở rộng (Lakehouse): **Bronze → Silver → Gold**. Gold phải kh�
 ## 5. Quy mô dữ liệu
 
 Số liệu chính thức lấy từ tab **Số liệu chốt** trong file kế hoạch (nguồn duy nhất cho báo cáo, slide, dashboard).
+Các số dưới đây được đếm bằng script `Data/dem_so_lieu.py` (mã việc S1.06).
 
 | Chỉ số | Giá trị |
 |---|---|
 | Số file CSV nguồn | 18 |
 | Tổng dung lượng nguồn | [__] MB |
-| Số bệnh nhân | [__] |
-| Số lượt khám | [__] |
-| Tổng số dòng 8 fact | [__] |
+| Số bệnh nhân | 5.042 |
+| Số cơ sở y tế / bác sĩ / chuyên khoa | 166 / 792 / 21 |
+| Số hạt / thành phố / ZIP | 14 / 371 / 316 |
+| Số lượt khám | 69.684 |
+| Tổng số dòng 8 fact | 2.934.829 |
 | Thời gian nạp `claims_transactions` (COPY / pandas) | [__] giây / [__] giây |
 
 ## 6. Cấu trúc thư mục
 
 ```
-btl-dw-bi-synthea/
+DATA_WAREHOUSE_GROUP_5_HEALTHCARE/
 ├── README.md
+├── .gitignore
+├── Data/           # 18 file CSV nguồn (chỉ ở máy, KHÔNG đưa lên Git) + dem_so_lieu.py
 ├── sql/            # Tạo schema, staging, ETL, dim, fact, mart, index, đo hiệu năng
 ├── python/         # Nạp CSV vào staging; EDA; ETL bằng pandas
 ├── r/              # EDA bằng R
 ├── powerquery/     # Code Power Query (M) và DAX lưu dạng text
-└── lakehouse/      # Bronze – Silver – Gold; truy vấn DuckDB; so sánh với PostgreSQL
+└── lakehouse/      # Phần mở rộng (mục 12), không ảnh hưởng hệ thống chính
 ```
 
 Đặt tên file code có số thứ tự theo thứ tự chạy, ví dụ: `sql/01_tao_schema.sql`, `sql/02_tao_staging.sql`, `python/01_nap_staging.py`.
+
+Thư mục `Data/` có sẵn trong repo nhưng Git chỉ theo dõi file code trong đó. Mọi file `.csv` trong `Data/` đã bị chặn bởi `.gitignore`.
 
 ## 7. Cách chạy lại từ đầu
 
@@ -124,22 +126,25 @@ btl-dw-bi-synthea/
 ```bash
 # 1. Tải code
 git clone [__ link repo __]
-cd btl-dw-bi-synthea
+cd DATA_WAREHOUSE_GROUP_5_HEALTHCARE
 
 # 2. Cài thư viện Python
-pip install pandas sqlalchemy psycopg2-binary deltalake duckdb
+pip install pandas sqlalchemy psycopg2-binary
 
-# 3. Tải 18 file CSV từ Google Drive, đặt vào thư mục data/ (thư mục này không đưa lên Git)
+# 3. Tải 18 file CSV từ Google Drive, đặt vào thư mục Data/ (các file CSV không đưa lên Git)
+
+# 4. Kiểm tra dữ liệu: đếm số dòng, số cột, dung lượng 18 file
+python Data/dem_so_lieu.py
 ```
 
 | Bước | Việc | Script | Mã việc |
 |---|---|---|---|
+| 0 | Đếm quy mô 18 CSV, xuất `so_lieu_tong_hop.csv`, `quy_mo_18_bang.csv` vào `Data/` | `Data/dem_so_lieu.py` | S1.06 |
 | 1 | Tạo database `synthea_dw` và 3 schema | `sql/01_tao_schema.sql` [__] | S1.02 |
 | 2 | Nạp 18 CSV vào `staging` | [__] | S1.03 |
 | 3 | ETL: tạo dim và fact trong `dw` | [__] | Sprint 2 |
 | 4 | Tạo 4 data mart trong `mart` | [__] | Sprint 2 |
 | 5 | Mở file .pbix trên Drive, đổi kết nối sang PostgreSQL máy mình, bấm Refresh | — | Sprint 3 |
-| 6 | Chạy Lakehouse Bronze → Silver → Gold | [__] | Sprint 3–4 |
 
 ## 8. Quy tắc và giả định của nhóm
 
@@ -153,7 +158,7 @@ pip install pandas sqlalchemy psycopg2-binary deltalake duckdb
 ## 9. Lưu ý khi xử lý dữ liệu
 
 - **Không mở rồi lưu lại CSV bằng Excel:** Excel cắt bảng trên ~1 triệu dòng, làm mất số 0 đầu ZIP và đổi định dạng ngày.
-- File CSV có ký tự **BOM** ở đầu: với pandas dùng `encoding='utf-8-sig'`; với `COPY` kiểm tra tên cột đầu không bị dính ký tự lạ (ví dụ `﻿Id`).
+- File CSV có ký tự **BOM** ở đầu: với pandas dùng `encoding='utf-8-sig'`; với `COPY` kiểm tra tên cột đầu không bị dính ký tự lạ (ví dụ cột `Id` bị đọc thành `﻿Id`).
 - ZIP có giá trị `00000` (không xác định) và dạng 9 số (ZIP+4): chuẩn hóa về 5 số trong ETL.
 - Đọc mọi cột dạng chuỗi ở bước staging, ép kiểu ở bước ETL.
 
@@ -172,4 +177,49 @@ Mẫu đầu file SQL:
 -- Input    : staging.stg_patients
 -- Output   : dw.dim_patient
 -- Người viết: TV2 | Mã việc: S2.05
+```
+
+## 11. Tiến độ
+
+| Sprint | Thời gian | Trọng tâm |
+|---|---|---|
+| S1 | 04/11 – 05/11 | Cài đặt, nạp staging, khảo sát nghiệp vụ, chốt thiết kế |
+| S2 | 06/11 – 07/11 | EDA, ETL, DW và data mart, KPI |
+| S3 | 08/11 – 09/11 | Mô hình Power BI, DAX, dashboard D1–D5 |
+| S4 | 10/11 – 11/11 | D6, publish web, phần mở rộng, hoàn thiện báo cáo và slide, nộp bài |
+
+Chi tiết từng việc: file kế hoạch Excel trên Drive, tab **Kế hoạch chi tiết**.
+
+---
+
+## 12. Phần mở rộng: Data Lakehouse
+
+> Phần này là **bổ sung** cho hệ thống chính, tương ứng Chương 4 của báo cáo. Hệ thống DW & BI ở mục 1–11 không phụ thuộc phần này.
+
+**Mục tiêu:** triển khai cùng bộ dữ liệu Synthea theo kiến trúc Lakehouse, rồi so sánh với kho dữ liệu PostgreSQL.
+
+**Nền tảng:** Delta Lake (thư viện `deltalake`) + DuckDB; Microsoft Fabric là tùy chọn.
+
+```mermaid
+flowchart LR
+    A[18 file CSV<br/>Synthea] --> B[Bronze<br/>Delta nguyên gốc]
+    B --> C[Silver<br/>làm sạch, phân vùng theo năm]
+    C --> D[Gold<br/>8 fact + 10 dim]
+    D -->|DuckDB| E[So sánh với<br/>PostgreSQL]
+```
+
+| Lớp Lakehouse | Tương ứng trong hệ thống chính |
+|---|---|
+| Bronze | Staging |
+| Silver | Bước làm sạch trong ETL |
+| Gold | Data Warehouse và data mart (số liệu phải khớp DW) |
+
+**Thử nghiệm:** time travel, schema evolution, MERGE nạp tăng dần, ACID.
+**So sánh:** dung lượng CSV / Parquet / Delta; 5 truy vấn PostgreSQL và DuckDB trên Delta: [__] (xem tab Số liệu chốt).
+
+**Cách chạy:**
+
+```bash
+pip install deltalake duckdb
+# Script đặt trong lakehouse/, chạy theo số thứ tự: [__]
 ```

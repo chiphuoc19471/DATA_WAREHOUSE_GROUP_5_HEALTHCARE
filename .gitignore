@@ -1,0 +1,20 @@
+# ===== Dữ liệu: chỉ để ở máy, không đưa lên GitHub (README mục 10) =====
+# CSV nguồn Synthea + file kết quả trong Data/ và ở mọi thư mục khác
+*.csv
+# Parquet, Delta Lake (phần mở rộng lakehouse/)
+*.parquet
+_delta_log/
+# Power BI
+*.pbix
+
+# ===== Python =====
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# ===== R =====
+.Rhistory
+.RData
+.Rproj.user/
